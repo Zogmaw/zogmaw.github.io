@@ -10,7 +10,7 @@ on:
       - LICENSE
 
   # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch: pages-deploy
+  workflow_dispatch:
 
 permissions:
   contents: read
