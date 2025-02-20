@@ -40,3 +40,48 @@ Software:
 3. After authenticating, you're able to edit sunshine's settings.  The defaults are largely fine, so we'll go right to the Pin tab to pair with the moonlight client.
 4. From the moonlight client (not the ssh terminal, your actual TV) you should see your PC in a list of servers.  Attempt to connect to it and it should give you a PIN.  Put that pin in the sunshine web GUI and give the moonlight client a name.
 5. That's it! You should now be able to start a connection from the moonlight client to your PC to play games.
+
+# Optional Stuff
+
+## Running Moonlight at startup
+
+The 'most correct' way to run something in the background and keep it running is by making a daemon/systemd service for it.  We'll create a the following file and place it in ~/.config/systemd/user
+
+```
+[Unit]
+Description=Moonlight Client
+
+
+[Service]
+ExecStart=/usr/bin/moonlight-qt
+Type=exec
+Restart=no
+
+
+[Install]
+WantedBy=default.target
+```
+{: file="moonlight.service"}
+
+We then need to run a few commands to enable the service:
+```shell
+systemctl --user daemon-reload
+systemctl --user enable moonlight.service
+```
+
+You can confirm it's running with
+```shell
+systemctl --user status moonlight
+```
+
+## Pairing a Bluetooth controller to your Pi
+
+1. Enter `bluetoothctl`
+2. Turn the agent on with `agent on`
+3. Scan for nearby devices with `scan on`. This will show nearby devices' names and mac addresses
+4. Pair the device you want with `pair <mac address>`
+5. To connect to a previously paired device, use `connect <mac address>`.  Alternativly, use `trust <mac address>` to avoid needing to reconnect manually.
+
+
+## Other Notes
+- Sunshine comes with full desktop and steam pre-add, but you can [add other apps as well](https://docs.lizardbyte.dev/projects/sunshine/latest/md_docs_2app__examples.html)
