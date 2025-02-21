@@ -74,6 +74,9 @@ You can confirm it's running with
 systemctl --user status moonlight
 ```
 
+Now, whenever you have a session open for the user, moonlight will be running.  If you want to have it start moonlight regardless of a user session running (ie, you don't want to have to SSH in) you can do that with `sudo loginctl enable-linger $USER`. This command makes the user's systemd instance independant from their sessions.
+
+
 ## Pairing a Bluetooth controller to your Pi
 
 1. Enter `bluetoothctl`
