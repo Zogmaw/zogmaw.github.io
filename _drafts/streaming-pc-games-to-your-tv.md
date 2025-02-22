@@ -21,7 +21,7 @@ Physical:
 
 Software:
 - [Moonlight](https://moonlight-stream.org/), an open-source client for game streaming
-- Server
+- [Sunshine](https://app.lizardbyte.dev/Sunshine/?lng=en-US), an open-source host (server) for game streaming
 
 # Guide
 
@@ -45,18 +45,16 @@ Software:
 
 ## Running Moonlight at startup
 
-The 'most correct' way to run something in the background and keep it running is by making a daemon/systemd service for it.  We'll create a the following file and place it in ~/.config/systemd/user
+The 'most correct' way to run something in the background and keep it running is by making a daemon/systemd service for it.  We'll create a the following file and place it in `~/.config/systemd/user`
 
 ```
 [Unit]
 Description=Moonlight Client
 
-
 [Service]
 ExecStart=/usr/bin/moonlight-qt
 Type=exec
 Restart=no
-
 
 [Install]
 WantedBy=default.target
@@ -83,8 +81,51 @@ Now, whenever you have a session open for the user, moonlight will be running.  
 2. Turn the agent on with `agent on`
 3. Scan for nearby devices with `scan on`. This will show nearby devices' names and mac addresses
 4. Pair the device you want with `pair <mac address>`
-5. To connect to a previously paired device, use `connect <mac address>`.  Alternativly, use `trust <mac address>` to avoid needing to reconnect manually.
+5. To connect to a previously paired device, use `connect <mac address>`.  Additionally, use `trust <mac address>` to trust the device. If you'd like the controller to connect automatically (without using the commandline each time) we'll need to set up another service.
 
+### Automatically reconnecting Bluetooth devices
+
+Unfortunately this way is a little hacky.  Like starting moonlight at boot, we'll make a new service that continuously tries to connect to our trusted devices.  That way when we turn them on, the pi will already be attempting to connect them.  My bash script looks like this:
+
+```shell
+#!/bin/bash
+
+devices=$(bluetoothctl devices | awk '{print $2}')
+
+while true; do
+for device in $devices; do
+	bluetoothctl connect $device
+done
+done
+```
+{: file="connectTrustedBLEDevices.sh"}
+
+Here's what the script is doing.  First, we get all of our trusted devices and use awk to pull their mac address.  Then we start and infinate loop and go through each device and attempt a connection.  If the device is already connected it still runs the connect command, but I haven't experienced any performance issues due to that.  
+
+I have this script saved in my home directory under the scripts folder. Also be sure it's executable, which can be achieved by running `chmod +x connectTrustedBLEDevices.sh`
+
+Now we need to set up another service similar to before. In `~/.config/systemd/user` place the following file
+
+```
+[Unit]
+Description=Attempt to connect trusted BLE Devices
+
+[Service]
+ExecStart=/home/<username>/scripts/connectTrustedBLEDevices.sh
+Type=exec
+Restart=no
+
+[Install]
+WantedBy=default.target
+```
+{: file="connectTrustedBLEDevices.service"}
+
+Install this service by running the following commands:
+
+```shell
+systemctl --user daemon-reload
+systemctl --user enable connectTrustedBLEDevices.service
+```
 
 ## Other Notes
 - Sunshine comes with full desktop and steam pre-add, but you can [add other apps as well](https://docs.lizardbyte.dev/projects/sunshine/latest/md_docs_2app__examples.html)
