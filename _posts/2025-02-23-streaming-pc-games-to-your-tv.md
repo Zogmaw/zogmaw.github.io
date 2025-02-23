@@ -2,8 +2,11 @@
 layout: post
 title: Streaming PC games to your TV
 date: 2025-02-19 16:25 -0500
-categories: [Projects]
-tags: [tech, gaming]
+categories:
+- Projects
+tags:
+- tech
+- gaming
 ---
 # Problem
 
@@ -85,7 +88,7 @@ Now, whenever you have a session open for the user, moonlight will be running.  
 
 ### Automatically reconnecting Bluetooth devices
 
-Unfortunately this way is a little hacky.  Like starting moonlight at boot, we'll make a new service that continuously tries to connect to our trusted devices.  That way when we turn them on, the pi will already be attempting to connect them.  My bash script looks like this:
+Unfortunately this way is a little hacky and I haven't been able to find a 'real' solution.  First, we'll make a script that continuously tries to connect to our trusted devices.  Then we'll add a cronjob that starts the script on boot.  I initially tried making another service instead of a cronjob, but was unable to get it working.  This way when we turn the controllers on, the pi will already be attempting to connect them.  My bash script looks like this:
 
 ```shell
 #!/bin/bash
@@ -104,28 +107,17 @@ Here's what the script is doing.  First, we get all of our trusted devices and u
 
 I have this script saved in my home directory under the scripts folder. Also be sure it's executable, which can be achieved by running `chmod +x connectTrustedBLEDevices.sh`
 
-Now we need to set up another service similar to before. In `~/.config/systemd/user` place the following file
+Now we need to set up our cronjob. We'll run `crontab -e` to edit our user's cron file.  Then, place the following line at the bottom
 
 ```
-[Unit]
-Description=Attempt to connect trusted BLE Devices
-
-[Service]
-ExecStart=/home/<username>/scripts/connectTrustedBLEDevices.sh
-Type=exec
-Restart=no
-
-[Install]
-WantedBy=default.target
+@reboot sleep 300 && /home/<user>/scripts/connectTrustedBLEDevices.sh
 ```
-{: file="connectTrustedBLEDevices.service"}
+{: file="crontab"}
 
-Install this service by running the following commands:
+This job first sleeps for 5 minutes upon a reboot then runs our infinate script to attempt to connect to the trusted bluetooth devices.
 
-```shell
-systemctl --user daemon-reload
-systemctl --user enable connectTrustedBLEDevices.service
-```
+### Future Improvement
+I'd like to figure out a better way to do this than running this script all the time. Ideally, I think using GPIO and hooking up a button to the pi could be a good solution.  Pushing the button could run the script for 1 minute to allow trusted devices to connect, then stop.
 
 ## Other Notes
 - Sunshine comes with full desktop and steam pre-add, but you can [add other apps as well](https://docs.lizardbyte.dev/projects/sunshine/latest/md_docs_2app__examples.html)
