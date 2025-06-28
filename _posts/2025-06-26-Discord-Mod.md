@@ -31,8 +31,89 @@ After playing around with a few more style combinations and getting nowhere, I r
 
 ### usernameGradient
 
-Can make the name just white, no color
+This is defined as follows in the css file:
+```
+.usernameGradient_e5de78 {
+    -webkit-background-clip: text;
+    background-clip: text;
+    background-size: 100px auto;
+    -webkit-text-fill-color: transparent
+}
+```
+Playing around with these, adding a color property didn't do anything.  However, removing the -webkit-text-fill-color property turned all names to white.  While this does get rid of the gradient, I could just remove the role colors in the options.  I wasn't able to keep the role color using this class though.
+
 
 ### twoColorGradient and threeColorGradient
 
-Change the linear-gradient to just background: var(1) to make it the 1st solid color
+These classes were defined as follows:
+
+```
+.twoColorGradient_e5de78 {
+    background: linear-gradient(to right,var(--custom-gradient-color-1),var(--custom-gradient-color-2),var(--custom-gradient-color-1))
+}
+
+.threeColorGradient_e5de78 {
+    background: linear-gradient(to right,var(--custom-gradient-color-1),var(--custom-gradient-color-2),var(--custom-gradient-color-3),var(--custom-gradient-color-1))
+}
+```
+Some usernames use the two color gradient while others use the three, probably depending on how the role is configured.  Changing the background property in these classes changes the color of the usernames that use the class.  Now we're getting somewhere!  In order to preserve some relation between color and role, we don't want to just set the background to a static color.  Based on the linear-gradient function call, it looks like there are colors stored in variables.  Changing the background property to just `var(--custom-gradient-color-1)` achieved the desired result.
+
+
+## Automation
+
+It would be a bit tedious to need to comb through css files to find the correct one with these classes then edit the background property every time I launch discord.  The easiest was to do this is probably with some javascript, so I started doing some more research.  Here was my basic psudocode
+
+1. Find the css file with the color gradient classes
+2. Find the color gradient classes within the css file
+3. Replace the background attribute with just the first color variable
+4. Profit
+
+Thankfully there are a ton of builtin javascript methods to make this easy.  `document.stylesheets` [returns a list of all the associated stylesheets](https://developer.mozilla.org/en-US/docs/Web/API/Document/styleSheets) on a page, listed first by linked headers in header order, then from the DOM in tree order.  This is great, especially since it's pre-sorted.  Running this in the console returns 18 stylesheets.  We know the name of the css file we need, so looking at the href property shows us that the first list entry is what we need (at index 0).
+
+Now that we have the css file, we need to find the gradient classes within it.  The rules property has a list of CSSRules, which we can iterate through.  A sample CSSRule has the following properties
+
+```
+cssRules: CSSRuleList
+cssText: ".twoColorGradient_e5de78 { background: linear-gradient(to right,var(--custom-gradient-color-1),var(--custom-gradient-color-2),var(--custom-gradient-color-1)); }"
+parentRule: null
+parentStyleSheet: CSSStyleSheet {ownerRule: null, cssRules: CSSRuleList, rules: CSSRuleList, type: 'text/css', href: 'https://discord.com/assets/12633.675d62620d1094b7.css', …}
+selectorText: ".twoColorGradient_e5de78"
+style: CSSStyleDeclaration {0: 'background-image', 1: 'background-position-x', 2: 'background-position-y', 3: 'background-size', 4: 'background-repeat', 5: 'background-attachment', 6: 'background-origin', 7: 'background-clip', 8: 'background-color', accentColor: '', additiveSymbols: '', alignContent: '', alignItems: '', alignSelf: '', …}
+styleMap: StylePropertyMap {size: 9}
+type: 1
+```
+
+Looking at the properties of the rules, most have the 'selectorText' property, which appears to be the class name.  We can look for the required classes using this property.  In order to match on the classes we want, we can use the `includes` function of strings to search for a substring within them.  For example, `"testing".includes("tin")` would return `true`.
+
+With that in mind, we can run the following code in our console to find where the gradient classes are within out list
+
+```
+for (let i = 0; i< document.styleSheets[0].rules.length; i++) {
+    let txt = document.styleSheets[0].rules[i].selectorText
+    if (txt != undefined) {
+        if(document.styleSheets[0].rules[i].selectorText.includes("ColorGradient")) {
+            console.log(i)
+        }
+    }
+}
+```
+
+The above code will print the indicies at which the gradient classes are in the list.  Now that we've found them, the next step is to modify their styles to only use the first color in the gradient.  We can make a simple change to our code to bring us to our final result:
+
+```
+for (let i = 0; i< document.styleSheets[0].rules.length; i++) {
+    let txt = document.styleSheets[0].rules[i].selectorText
+    if (txt != undefined) {
+        if(document.styleSheets[0].rules[i].selectorText.includes("ColorGradient")) {
+            console.log(i)
+            document.styleSheets[0].rules[i].style.background = "var(--custom-gradient-color-1)"
+        }
+    }
+}
+```
+
+# Future Work
+
+This isn't a bad solution, but it does require opening the dev console and copy/pasting this command every time we start discord.  I'm not sure how to further automate this, but it's something I'd like to look into.
+
+There is also another semi-related feature with the gradients that has some type of glow when hovering over a name.  This doesn't bother me nearly as much so I decided to leave it in, but if it does in the future it can likely be 'disabled' in a similar way.
