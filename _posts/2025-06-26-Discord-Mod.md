@@ -2,20 +2,24 @@
 layout: post
 title: Modifying Discord
 date: 2025-06-26 10:24 -0500
-categories:
-- Projects
-tags:
-- tech
+categories: [Projects]
+tags: [tech]
 ---
 # Problem
 
 Discord released a new [update](https://discord.com/blog/get-more-from-your-boosts-with-new-server-perks) recently introducing new server perks.  'Enhanced role styles', however, hurts my eyes and there's no option to disable it.  In the accessability settings, reduced motion can be enabled to remove the 'glow' when hovering over the gradient.  Within the same setting page, role colors can be set to show next to names (or not at all), but this makes it more difficult to identify who people are in my opinion.  It also looks like garbage.  Surely there's a way to just disable the gradient so reading names isn't painful but still keep their color?  Wrong.
 
+![gradient](/assets/images/gradient.png)
+_Username Gradient_
+
+![next-to-name](/assets/images/nexttoname.png)
+_Accessability feature showing role color next to name_
+
 # Investigation
 
 ## Getting dev access
 
-Luckly for us, discord is an electron app which means it's basically a web browser.  As with any normal webpage, we can open up dev tools and inspect elements to our hearts' content.  Discord did make this a little trickier to do on their desktop client though in the name of security to prevent users from getting phished.  To enable it, we first need to go to our settings.json file at `%appdata%/discord/settings.json` and add a new property `"DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING": true`.  After a saving the file and restarting the app, we can open up the dev tools with `ctrl+shift+i`.  If you've ever done this in your browser with F12, it'll look very familiar.
+Luckly for us, discord is an electron app which means it's basically a web browser.  As with any normal webpage, we can open up dev tools and inspect elements to our hearts' content.  Discord did make this a little trickier to do on their desktop client though in the name of security to prevent users from getting phished.  To enable it, we first need to go to our settings.json file at `%appdata%/discord/settings.json` (for windows installs; `~/snap/discord/current/.config/discord/settings.json` for linux) and add a new property `"DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING": true`.  After a saving the file and restarting the app, we can open up the dev tools with `ctrl+shift+i`.  If you've ever done this in your browser with F12, it'll look very familiar.
 
 ## Poking around
 
@@ -27,12 +31,15 @@ The next step was figuring out *what* exactly causes the gradient.  Within the e
 
 Now we're getting somewhere.  It looks like there's a few things mentioning gradient right here.  My first instinct was to investigate the 'style' attribute, since that's what gives an element its look.  I first tried removing all of the --custom-gradient-color variables, but was left with just a blank name.  Even adding a color: property still left me with no name.
 
+![blank-name](/assets/images/blankname.png)
+_Username after removing custom-gradient-color variables_
+
 After playing around with a few more style combinations and getting nowhere, I remembered that HTML tags (<span>, in this case) can inherrit css from classes.  CSS, if you're unfamiliar, is the styling of webpages and also what's written in the style attributes of HTML tags.  My next step now was to find the css file containing the styles for the classes.  I foolishly did this by going to the sources tab of the dev tools and searching each css file for the classes.  However, within the elements tab you can see the styles of the selected element and where they come from, allowing you to easily find the file.  The classes I was particularly interested in were username, desaturateUserColors, threeColorGradient, usernameGradient, convenienceGlowGradient, and I also found a twoColorGradient class after opening the css file.  Most of them ended up not being particularly interesting, except for (believe it or not) the ones with Gradient in the name.
 
 ### usernameGradient
 
 This is defined as follows in the css file:
-```
+```CSS
 .usernameGradient_e5de78 {
     -webkit-background-clip: text;
     background-clip: text;
@@ -47,7 +54,7 @@ Playing around with these, adding a color property didn't do anything.  However,
 
 These classes were defined as follows:
 
-```
+```CSS
 .twoColorGradient_e5de78 {
     background: linear-gradient(to right,var(--custom-gradient-color-1),var(--custom-gradient-color-2),var(--custom-gradient-color-1))
 }
@@ -72,7 +79,7 @@ Thankfully there are a ton of builtin javascript methods to make this easy.  `do
 
 Now that we have the css file, we need to find the gradient classes within it.  The rules property has a list of CSSRules, which we can iterate through.  A sample CSSRule has the following properties
 
-```
+```JavaScript
 cssRules: CSSRuleList
 cssText: ".twoColorGradient_e5de78 { background: linear-gradient(to right,var(--custom-gradient-color-1),var(--custom-gradient-color-2),var(--custom-gradient-color-1)); }"
 parentRule: null
@@ -87,7 +94,7 @@ Looking at the properties of the rules, most have the 'selectorText' property, w
 
 With that in mind, we can run the following code in our console to find where the gradient classes are within out list
 
-```
+```JavaScript
 for (let i = 0; i< document.styleSheets[0].rules.length; i++) {
     let txt = document.styleSheets[0].rules[i].selectorText
     if (txt != undefined) {
@@ -100,7 +107,7 @@ for (let i = 0; i< document.styleSheets[0].rules.length; i++) {
 
 The above code will print the indicies at which the gradient classes are in the list.  Now that we've found them, the next step is to modify their styles to only use the first color in the gradient.  We can make a simple change to our code to bring us to our final result:
 
-```
+```JavaScript
 for (let i = 0; i< document.styleSheets[0].rules.length; i++) {
     let txt = document.styleSheets[0].rules[i].selectorText
     if (txt != undefined) {
@@ -111,6 +118,12 @@ for (let i = 0; i< document.styleSheets[0].rules.length; i++) {
     }
 }
 ```
+
+After running the script, we can see usernames are a solid color again.  Success!
+
+![good-names](/assets/images/fixedUsernames.png)
+_Usernames are once again one color_
+
 
 # Future Work
 
